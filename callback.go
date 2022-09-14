@@ -16,9 +16,10 @@ package gormetrics
 
 import (
 	"fmt"
+	"gorm.io/gorm"
+	"time"
 
 	"github.com/pkg/errors"
-	"github.com/profects/gormetrics/gormi"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -31,10 +32,22 @@ type callbackHandler struct {
 	defaultLabels map[string]string
 }
 
-func (h *callbackHandler) registerCallback(cb gormi.Callback) {
+func (h *callbackHandler) registerCallback(db *gorm.DB) {
+	cb := db.Callback()
+
+	cb.Create().Before("gorm:create").Register(
+		h.opts.callbackName("before_create"),
+		h.setStartTime,
+	)
+
 	cb.Create().After("gorm:after_create").Register(
 		h.opts.callbackName("after_create"),
 		h.afterCreate,
+	)
+
+	cb.Delete().Before("gorm:delete").Register(
+		h.opts.callbackName("before_delete"),
+		h.setStartTime,
 	)
 
 	cb.Delete().After("gorm:after_delete").Register(
@@ -42,9 +55,19 @@ func (h *callbackHandler) registerCallback(cb gormi.Callback) {
 		h.afterDelete,
 	)
 
+	cb.Query().Before("gorm:query").Register(
+		h.opts.callbackName("before_query"),
+		h.setStartTime,
+	)
+
 	cb.Query().After("gorm:after_query").Register(
 		h.opts.callbackName("after_query"),
 		h.afterQuery,
+	)
+
+	cb.Update().Before("gorm:update").Register(
+		h.opts.callbackName("before_update"),
+		h.setStartTime,
 	)
 
 	cb.Update().After("gorm:after_update").Register(
@@ -53,33 +76,41 @@ func (h *callbackHandler) registerCallback(cb gormi.Callback) {
 	)
 }
 
-func (h *callbackHandler) afterCreate(scope gormi.Scope) {
-	h.updateVectors(scope, h.counters.creates)
+func (h *callbackHandler) setStartTime(db *gorm.DB) {
+	db.Set("timeStart", time.Now())
 }
 
-func (h *callbackHandler) afterDelete(scope gormi.Scope) {
-	h.updateVectors(scope, h.counters.deletes)
+func (h *callbackHandler) afterCreate(db *gorm.DB) {
+	h.updateCounterVectors(db, h.counters.creates)
+	h.updateHistogramVectors(db, h.counters.createsDuration)
 }
 
-func (h *callbackHandler) afterQuery(scope gormi.Scope) {
-	h.updateVectors(scope, h.counters.queries)
+func (h *callbackHandler) afterDelete(db *gorm.DB) {
+	h.updateCounterVectors(db, h.counters.deletes)
+	h.updateHistogramVectors(db, h.counters.deletesDuration)
 }
 
-func (h *callbackHandler) afterUpdate(scope gormi.Scope) {
-	h.updateVectors(scope, h.counters.updates)
+func (h *callbackHandler) afterQuery(db *gorm.DB) {
+	h.updateCounterVectors(db, h.counters.queries)
+	h.updateHistogramVectors(db, h.counters.queriesDuration)
 }
 
-// updateVectors registers one or more of prometheus.CounterVec to increment
-// with the status in scope (any type of query). If any errors are in
-// scope.DB().GetErrors(), a status "fail" will be assigned to the increment.
+func (h *callbackHandler) afterUpdate(db *gorm.DB) {
+	h.updateCounterVectors(db, h.counters.updates)
+	h.updateHistogramVectors(db, h.counters.updatesDuration)
+}
+
+// updateCounterVectors registers one or more of prometheus.CounterVec to increment
+// with the status in db (any type of query). If any errors are in
+// db.DB().GetErrors(), a status "fail" will be assigned to the increment.
 // Otherwise, a status "success" will be assigned.
-// Increments h.gauges.all (gormetrics_all_total) by default.
-func (h *callbackHandler) updateVectors(scope gormi.Scope, vectors ...*prometheus.CounterVec) {
+// Increments h.counters.all (gormetrics_all_total) by default.
+func (h *callbackHandler) updateCounterVectors(db *gorm.DB, vectors ...*prometheus.CounterVec) {
 	vectors = append(vectors, h.counters.all)
 
-	hasError := scope.DB().Error() != nil
+	_, err := db.DB()
 	status := metricStatusFail
-	if !hasError {
+	if err == nil {
 		status = metricStatusSuccess
 	}
 
@@ -91,7 +122,42 @@ func (h *callbackHandler) updateVectors(scope gormi.Scope, vectors ...*prometheu
 		if counter == nil {
 			continue
 		}
-		counter.With(labels).Inc()
+
+		counter.With(labels).Add(1)
+	}
+}
+
+// updateHistogramVectors registers one or more of prometheus.HistogramVec to add observations to
+// with the status in db (any type of query). If any errors are in
+// db.DB().GetErrors(), a status "fail" will be assigned to the increment.
+// Otherwise, a status "success" will be assigned.
+// Increments h.counters.allDuration (gormetrics_all_total) by default.
+func (h *callbackHandler) updateHistogramVectors(db *gorm.DB, vectors ...*prometheus.HistogramVec) {
+	vectors = append(vectors, h.counters.allDuration)
+
+	_, err := db.DB()
+	status := metricStatusFail
+	if err == nil {
+		status = metricStatusSuccess
+	}
+
+	labels := mergeLabels(prometheus.Labels{
+		labelStatus: status,
+	}, h.defaultLabels)
+
+	for _, histogram := range vectors {
+		if histogram == nil {
+			continue
+		}
+
+		startTime, ok := db.Get("timeStart")
+
+		if !ok {
+			continue
+		}
+
+		elapsed := time.Since(startTime.(time.Time)).Milliseconds()
+		histogram.With(labels).Observe(float64(elapsed))
 	}
 }
 
@@ -126,7 +192,7 @@ func newCallbackHandler(info extraInfo, opts *pluginOpts) (*callbackHandler, err
 }
 
 // callbackName creates a GORM callback name based on the configured plugin
-// scope and callback name.
+// db and callback name.
 func (c *pluginOpts) callbackName(callback string) string {
 	return fmt.Sprintf("%v:%v", c.gormPluginScope, callback)
 }

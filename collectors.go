@@ -35,13 +35,18 @@ var collectors = globalCollectors{
 	database: make(map[string]*databaseGauges),
 }
 
-// queryCounters contains all gauges that are exported.
+// queryCounters contains all histograms that are exported.
 type queryCounters struct {
-	all     *prometheus.CounterVec
-	creates *prometheus.CounterVec
-	deletes *prometheus.CounterVec
-	queries *prometheus.CounterVec
-	updates *prometheus.CounterVec
+	all             *prometheus.CounterVec
+	allDuration     *prometheus.HistogramVec
+	creates         *prometheus.CounterVec
+	createsDuration *prometheus.HistogramVec
+	deletes         *prometheus.CounterVec
+	deletesDuration *prometheus.HistogramVec
+	queries         *prometheus.CounterVec
+	queriesDuration *prometheus.HistogramVec
+	updates         *prometheus.CounterVec
+	updatesDuration *prometheus.HistogramVec
 }
 
 func newQueryCounters(namespace string) (*queryCounters, error) {
@@ -61,20 +66,39 @@ func newQueryCounters(namespace string) (*queryCounters, error) {
 		},
 	}
 
+	hc := histogramVecCreator{
+		namespace: namespace,
+		labels: []string{
+			labelDatabase,
+			labelDriver,
+			labelStatus,
+		},
+	}
+
 	qc := queryCounters{
-		all:     cc.new(metricAllTotal, helpAllTotal),
-		creates: cc.new(metricCreatesTotal, helpCreatesTotal),
-		deletes: cc.new(metricDeletesTotal, helpDeletesTotal),
-		queries: cc.new(metricQueriesTotal, helpQueriesTotal),
-		updates: cc.new(metricUpdatesTotal, helpUpdatesTotal),
+		all:             cc.new(metricAllTotal, helpAllTotal),
+		allDuration:     hc.new(metricAllDuration, helpAllDuration),
+		creates:         cc.new(metricCreatesTotal, helpCreatesTotal),
+		createsDuration: hc.new(metricCreatesDuration, helpCreatesDuration),
+		deletes:         cc.new(metricDeletesTotal, helpDeletesTotal),
+		deletesDuration: hc.new(metricDeletesDuration, helpDeletesDuration),
+		queries:         cc.new(metricQueriesTotal, helpQueriesTotal),
+		queriesDuration: hc.new(metricQueriesDuration, helpQueriesDuration),
+		updates:         cc.new(metricUpdatesTotal, helpUpdatesTotal),
+		updatesDuration: hc.new(metricUpdatesDuration, helpUpdatesDuration),
 	}
 
 	if err := registerCollectors(
 		qc.all,
+		qc.allDuration,
 		qc.creates,
+		qc.createsDuration,
 		qc.deletes,
+		qc.deletesDuration,
 		qc.queries,
+		qc.queriesDuration,
 		qc.updates,
+		qc.updatesDuration,
 	); err != nil {
 		return nil, errors.Wrap(err, "could not register collectors")
 	}
@@ -128,8 +152,7 @@ func newDatabaseGauges(namespace string) (*databaseGauges, error) {
 // registerCollectors registers multiple instances of prometheus.Collector.
 func registerCollectors(collectors ...prometheus.Collector) error {
 	for _, c := range collectors {
-		err := prometheus.Register(c)
-		if err != nil {
+		if err := prometheus.Register(c); err != nil {
 			return err
 		}
 	}

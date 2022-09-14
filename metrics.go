@@ -31,15 +31,25 @@ const (
 	helpIdleConnections  = `Currently idle connections to the database`
 	helpInUseConnections = `Currently in use connections`
 
-	metricAllTotal     = "all_total"
-	metricCreatesTotal = "creates_total"
-	metricDeletesTotal = "deletes_total"
-	metricQueriesTotal = "queries_total"
-	metricUpdatesTotal = "updates_total"
+	metricAllTotal        = "all_total"
+	metricAllDuration     = "all_duration"
+	metricCreatesTotal    = "creates_total"
+	metricCreatesDuration = "creates_duration"
+	metricDeletesTotal    = "deletes_total"
+	metricDeletesDuration = "deletes_duration"
+	metricQueriesTotal    = "queries_total"
+	metricQueriesDuration = "queries_duration"
+	metricUpdatesTotal    = "updates_total"
+	metricUpdatesDuration = "updates_duration"
 
-	helpAllTotal     = `All queries requested`
-	helpCreatesTotal = `All create queries requested`
-	helpDeletesTotal = `All delete queries requested`
-	helpQueriesTotal = `All select queries requested`
-	helpUpdatesTotal = `All update queries requested`
+	helpAllTotal        = `All queries requested`
+	helpAllDuration     = `Duration of all queries requested in milliseconds`
+	helpCreatesTotal    = `All create queries requested`
+	helpCreatesDuration = `Duration of all create queries requested in milliseconds`
+	helpDeletesTotal    = `All delete queries requested`
+	helpDeletesDuration = `Duration of all delete queries requested in milliseconds`
+	helpQueriesTotal    = `All select queries requested`
+	helpQueriesDuration = `Duration of all select queries requested in milliseconds`
+	helpUpdatesTotal    = `All update queries requested`
+	helpUpdatesDuration = `Duration of all update queries requested in milliseconds`
 )

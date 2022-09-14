@@ -17,10 +17,8 @@ package gormetrics
 import (
 	"reflect"
 
-	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
-	"github.com/profects/gormetrics/gormi"
-	"github.com/profects/gormetrics/gormi/adapter/unforked"
+	"gorm.io/gorm"
 )
 
 // Register gormetrics. Options (opts) can be used to configure the Prometheus
@@ -29,7 +27,7 @@ func Register(db *gorm.DB, dbName string, opts ...RegisterOpt) error {
 	if db == nil {
 		return ErrDbIsNil
 	}
-	return RegisterInterface(unforked.New(db), dbName, opts...)
+	return RegisterInterface(db, dbName, opts...)
 }
 
 // RegisterInterface registers gormetrics with a gormi.DB interface, which can
@@ -37,12 +35,13 @@ func Register(db *gorm.DB, dbName string, opts ...RegisterOpt) error {
 // you use a forked version of GORM.
 // Options (opts) can be used to configure the Prometheus namespace and
 // GORM plugin scope.
-func RegisterInterface(db gormi.DB, dbName string, opts ...RegisterOpt) error {
+func RegisterInterface(db *gorm.DB, dbName string, opts ...RegisterOpt) error {
 	if v := reflect.ValueOf(db); v.Kind() == reflect.Ptr && v.IsNil() {
 		return ErrDbIsNil
 	}
 
-	driverName := sqlDriverToDriverName(db.DB().Driver())
+	sql, err := db.DB()
+	driverName := sqlDriverToDriverName(sql.Driver())
 	handlerOpts := getOpts(opts)
 	info := extraInfo{
 		dbName:     dbName,
@@ -53,9 +52,9 @@ func RegisterInterface(db gormi.DB, dbName string, opts ...RegisterOpt) error {
 	if err != nil {
 		return errors.Wrap(err, "could not create callback handler")
 	}
-	handler.registerCallback(db.Callback())
+	handler.registerCallback(db)
 
-	dbInterface := newDatabase(info, db.DB())
+	dbInterface := newDatabase(info, sql)
 	dbMetrics, err := newDatabaseMetrics(dbInterface, handlerOpts)
 	if err != nil {
 		return errors.Wrap(err, "could not create database metrics exporter")
