@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-module github.com/profects/gormetrics
+module github.com/nkolosov/gormetrics
 
 go 1.18
 
 require (
 	github.com/go-test/deep v1.0.2
 	github.com/pkg/errors v0.8.1
-	github.com/prometheus/client_golang v1.3.0
+	github.com/prometheus/client_golang v1.12.2
 	golang.org/x/sys v0.0.0-20191220220014-0732a990476f // indirect
 	gorm.io/gorm v1.21.6
 )
