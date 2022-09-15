@@ -83,7 +83,7 @@ func (c histogramVecCreator) new(
 			Namespace: c.namespace,
 			Name:      name,
 			Help:      help,
-			Buckets:   []float64{.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10, 30, 60, math.Inf(1)},
+			Buckets:   []float64{.005, .01, .025, .05, .1, .15, .2, .25, .5, .75, 1, 1.5, 2, 2.5, 3, 4, 5, 10, 15, 30, 60, math.Inf(1)},
 		},
 		c.labels,
 	)
