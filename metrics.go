@@ -18,6 +18,7 @@ const (
 	labelStatus   = "status"
 	labelDatabase = "database"
 	labelDriver   = "driver"
+	labelTable    = "table"
 
 	// Statuses for metrics (values of labelStatus).
 	metricStatusFail    = "fail"

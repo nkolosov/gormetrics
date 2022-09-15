@@ -114,8 +114,14 @@ func (h *callbackHandler) updateCounterVectors(db *gorm.DB, vectors ...*promethe
 		status = metricStatusSuccess
 	}
 
+	var table string
+	if db.Statement != nil {
+		table = db.Statement.Table
+	}
+
 	labels := mergeLabels(prometheus.Labels{
 		labelStatus: status,
+		labelTable:  table,
 	}, h.defaultLabels)
 
 	for _, counter := range vectors {
@@ -141,8 +147,14 @@ func (h *callbackHandler) updateHistogramVectors(db *gorm.DB, vectors ...*promet
 		status = metricStatusSuccess
 	}
 
+	var table string
+	if db.Statement != nil {
+		table = db.Statement.Table
+	}
+
 	labels := mergeLabels(prometheus.Labels{
 		labelStatus: status,
+		labelTable:  table,
 	}, h.defaultLabels)
 
 	for _, histogram := range vectors {

@@ -63,6 +63,7 @@ func newQueryCounters(namespace string) (*queryCounters, error) {
 			labelDatabase,
 			labelDriver,
 			labelStatus,
+			labelTable,
 		},
 	}
 
@@ -72,6 +73,7 @@ func newQueryCounters(namespace string) (*queryCounters, error) {
 			labelDatabase,
 			labelDriver,
 			labelStatus,
+			labelTable,
 		},
 	}
 
